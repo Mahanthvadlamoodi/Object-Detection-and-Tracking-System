@@ -1,0 +1,40 @@
+# PE-YOLO v2: YOLOv8n + PENet v2 (Adaptive Fusion)
+# PENet outputs 3ch enhanced image → YOLO backbone takes 3ch
+# All pretrained weights load perfectly (no shape mismatch!)
+
+nc: 12  # ExDark classes
+scales:
+  n: [0.33, 0.25, 1024]
+
+backbone:
+  # [from, repeats, module, args]
+  - [-1, 1, PENetWrapper, [3, 3]]  # 0-PENet: 3ch → 3ch enhanced image
+  - [-1, 1, Conv, [64, 3, 2]]      # 1-P1/2   (3→16 with scale n)
+  - [-1, 1, Conv, [128, 3, 2]]     # 2-P2/4
+  - [-1, 3, C2f, [128, True]]      # 3
+  - [-1, 1, Conv, [256, 3, 2]]     # 4-P3/8
+  - [-1, 6, C2f, [256, True]]      # 5        ← P3 features
+  - [-1, 1, Conv, [512, 3, 2]]     # 6-P4/16
+  - [-1, 6, C2f, [512, True]]      # 7        ← P4 features
+  - [-1, 1, Conv, [1024, 3, 2]]    # 8-P5/32
+  - [-1, 3, C2f, [1024, True]]     # 9
+  - [-1, 1, SPPF, [1024, 5]]       # 10       ← P5 features
+
+head:
+  - [-1, 1, nn.Upsample, [None, 2, "nearest"]]  # 11
+  - [[-1, 7], 1, Concat, [1]]                     # 12 cat P4
+  - [-1, 3, C2f, [512]]                            # 13
+
+  - [-1, 1, nn.Upsample, [None, 2, "nearest"]]   # 14
+  - [[-1, 5], 1, Concat, [1]]                     # 15 cat P3
+  - [-1, 3, C2f, [256]]                            # 16 (P3/8-small)
+
+  - [-1, 1, Conv, [256, 3, 2]]                    # 17
+  - [[-1, 13], 1, Concat, [1]]                    # 18 cat head P4
+  - [-1, 3, C2f, [512]]                            # 19 (P4/16-medium)
+
+  - [-1, 1, Conv, [512, 3, 2]]                    # 20
+  - [[-1, 10], 1, Concat, [1]]                    # 21 cat head P5
+  - [-1, 3, C2f, [1024]]                           # 22 (P5/32-large)
+
+  - [[16, 19, 22], 1, Detect, [nc]]               # 23 Detect(P3, P4, P5)

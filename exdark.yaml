@@ -1,0 +1,18 @@
+train: /teamspace/studios/this_studio/images/train
+val: /teamspace/studios/this_studio/images/val
+test: /teamspace/studios/this_studio/images/test
+
+nc: 12
+names:
+  - Bicycle
+  - Boat
+  - Bottle
+  - Bus
+  - Car
+  - Cat
+  - Chair
+  - Cup
+  - Dog
+  - Motorbike
+  - People
+  - Table
