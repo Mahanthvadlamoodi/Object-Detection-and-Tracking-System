@@ -1,6 +1,6 @@
-train: /teamspace/studios/this_studio/images/train
-val: /teamspace/studios/this_studio/images/val
-test: /teamspace/studios/this_studio/images/test
+train: ./images/train
+val: ./images/val
+test: ./images/test
 
 nc: 12
 names:

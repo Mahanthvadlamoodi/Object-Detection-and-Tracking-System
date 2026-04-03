@@ -1,1 +1,0 @@
-# Object-Detection-and-Tracking-System-MTP

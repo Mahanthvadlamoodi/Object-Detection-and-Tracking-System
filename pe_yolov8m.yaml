@@ -1,0 +1,44 @@
+# DE-YOLOv8m — YOLOv8 medium + DarkEnhance (Gated ISP + Curves)
+# Hybrid of GDIP (ICRA 2023) + Zero-DCE + PENet edge-awareness
+# ~8K enhancement params
+
+nc: 12
+scales:
+  m: [0.67, 0.75, 768]
+
+backbone:
+  - [-1, 1, PENetWrapper, [3]]      # 0 — PENet Enhancement (3ch → 3ch image-in to image-out)
+
+  - [-1, 1, Conv, [64, 3, 2]]             # 1 — P1/2
+  - [-1, 1, Conv, [128, 3, 2]]            # 2 — P2/4
+  - [-1, 3, C2f, [128, True]]             # 3
+
+  - [-1, 1, Conv, [256, 3, 2]]            # 4 — P3/8
+  - [-1, 6, C2f, [256, True]]             # 5
+
+  - [-1, 1, Conv, [512, 3, 2]]            # 6 — P4/16
+  - [-1, 6, C2f, [512, True]]             # 7
+
+  - [-1, 1, Conv, [1024, 3, 2]]           # 8 — P5/32
+  - [-1, 3, C2f, [1024, True]]            # 9
+
+  - [-1, 1, SPPF, [1024, 5]]              # 10
+
+head:
+  - [-1, 1, nn.Upsample, [None, 2, 'nearest']]   # 11
+  - [[-1, 7], 1, Concat, [1]]                     # 12
+  - [-1, 3, C2f, [512]]                           # 13
+
+  - [-1, 1, nn.Upsample, [None, 2, 'nearest']]   # 14
+  - [[-1, 5], 1, Concat, [1]]                     # 15
+  - [-1, 3, C2f, [256]]                           # 16
+
+  - [-1, 1, Conv, [256, 3, 2]]                    # 17
+  - [[-1, 13], 1, Concat, [1]]                    # 18
+  - [-1, 3, C2f, [512]]                           # 19
+
+  - [-1, 1, Conv, [512, 3, 2]]                    # 20
+  - [[-1, 10], 1, Concat, [1]]                    # 21
+  - [-1, 3, C2f, [1024]]                          # 22
+
+  - [[16, 19, 22], 1, Detect, [nc]]               # 23
