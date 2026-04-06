@@ -2,7 +2,7 @@ task: detect
 mode: train
 model: yolov8n.pt
 data: /home/ai21ma3ai30/aaadi/Object-Detection-and-Tracking-System/exdark.yaml
-epochs: 100
+epochs: 60
 time: null
 patience: 30
 batch: 32
@@ -11,9 +11,9 @@ save: true
 save_period: -1
 cache: ram
 device: null
-workers: 32
-project: runs/yolov8n
-name: baseline
+workers: 16
+project: Baseline
+name: yolov8n
 exist_ok: true
 pretrained: true
 optimizer: SGD
@@ -90,8 +90,8 @@ hsv_h: 0.015
 hsv_s: 0.7
 hsv_v: 0.4
 degrees: 0.0
-translate: 0.1
-scale: 0.2
+translate: 0.05
+scale: 0.3
 shear: 0.0
 perspective: 0.0
 flipud: 0.0
@@ -106,4 +106,4 @@ auto_augment: randaugment
 erasing: 0.2
 cfg: null
 tracker: botsort.yaml
-save_dir: /home/ai21ma3ai30/aaadi/runs/detect/runs/yolov8n/baseline
+save_dir: /home/ai21ma3ai30/aaadi/Object-Detection-and-Tracking-System/runs/detect/Baseline/yolov8n

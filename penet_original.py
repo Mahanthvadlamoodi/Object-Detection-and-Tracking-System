@@ -4,12 +4,11 @@ import torch.nn.functional as F
 import numpy as np
 import cv2
 
-# Dynamic Edge Enhancer (Replaces slow CPU cv2.sobel)
 class DynamicEdgeEnhancer(nn.Module):
     def __init__(self):
         super().__init__()
         self.edge = nn.Conv2d(3, 3, 3, padding=1, groups=3, bias=False)
-        # Initialize dynamically with Sobel kernels
+        # Initializing the conv filter with sobel to avoid random initialization of weights
         sobel_x = torch.tensor([[-1., 0., 1.], [-2., 0., 2.], [-1., 0., 1.]])
         sobel_y = torch.tensor([[-1., -2., -1.], [0., 0., 0.], [1., 2., 1.]])
         sobel = (sobel_x + sobel_y) / 2.0
@@ -19,7 +18,7 @@ class DynamicEdgeEnhancer(nn.Module):
         return self.edge(x)
 
 
-# Tone Curve (For LF component enhancement)
+# Tone Curve (For Brightness enhancement of LF component)
 class ToneCurve(nn.Module):
     def __init__(self, n_iter=4):
         super().__init__()
@@ -46,7 +45,7 @@ class Lap_Pyramid_Conv(nn.Module):
         self.num_high = num_high
         self.kernel = self.gauss_kernel(kernel_size, channels)
         
-        # Gated fusion dynamic learnable parameters
+        # Dynamic fusion of LF + HF componenets while reconstruction
         self.w1 = nn.Parameter(torch.ones(num_high, 1, 1, 1))
         self.w2 = nn.Parameter(torch.ones(num_high, 1, 1, 1))
 
@@ -88,16 +87,14 @@ class Lap_Pyramid_Conv(nn.Module):
             diff = current - up
             pyr.append(diff)
             current = down
-        pyr.append(current) # Lowest frequency level
+        pyr.append(current) 
         return pyr
 
     def pyramid_recons(self, pyr):
-        # Reconstruct sequentially from bottom (LF) up to top (HF)
-        # pyr[-1]: base LF, pyr[0]: highest frequency details
         image = pyr[-1]
         for i in reversed(range(self.num_high)):
             up = self.upsample(image)
-            # Dynamic learnable gated fusion!
+            # Dynamic learnable fusion!
             image = self.w1[i] * up + self.w2[i] * pyr[i]
         return image
 
@@ -135,7 +132,6 @@ class DPM(nn.Module):
         input_x = x.view(batch, channel, height * width)
         context_mask = self.conv_mask(x).view(batch, 1, height * width)
         context_mask = self.softmax(context_mask)
-        # BMM efficiently prevents the PyTorch 32GB memory cache leak
         context = torch.bmm(input_x, context_mask.transpose(1, 2)).view(batch, channel, 1, 1)
         return context
 
@@ -172,8 +168,6 @@ class AE(nn.Module):
         self.agg = nn.Conv2d(6, 3, 1, stride=1, padding=0, bias=False)
         self.edge_extractor = DynamicEdgeEnhancer()
         self.conv_edge = nn.Conv2d(3, 3, kernel_size=1, bias=bias)
-
-        # Restoring these full blocks returns the ~90k parameter count smoothly
         self.res1 = ResidualBlock(3, 32)
         self.res2 = ResidualBlock(32, 3)
         self.dpm = nn.Sequential(DPM(32, 32))
@@ -181,16 +175,14 @@ class AE(nn.Module):
         self.conv1 = nn.Conv2d(3, 32, kernel_size=1)
         self.low_pass = LowPassModule(32)
         self.conv2 = nn.Conv2d(32, 3, kernel_size=1)
-        self.low_tone = ToneCurve() # LF Enhancement Module
+        self.low_tone = ToneCurve() 
         
         self.fusion = nn.Conv2d(6, 3, kernel_size=1)
 
-    def forward(self, x):
-        # 1. Edge Enhancement Path 
+    def forward(self, x): 
         s_x = self.edge_extractor(x)
         s_x = self.conv_edge(s_x)
 
-        # 2. Main High-Freq Path (with memory-safe DPM)
         res = self.res1(x)
         res = self.dpm(res)
         res = self.res2(res)
@@ -198,7 +190,6 @@ class AE(nn.Module):
         out = torch.cat([res, s_x + x], dim=1)
         out = self.agg(out)
 
-        # 3. Dynamic Low Frequency Path (with Tone Curve integration)
         low_fea = self.conv1(x)
         low_fea = self.low_pass(low_fea)
         low_fea = self.conv2(low_fea)
